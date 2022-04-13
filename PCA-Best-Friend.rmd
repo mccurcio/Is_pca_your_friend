@@ -1,0 +1,163 @@
+---
+title: "Is PCA Your Best Friend?"
+author: "Matt Curcio"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Why?
+
+It reveals the (*spooky*) hidden structure in your dataset.
+
+1. Identify important and/or similar features,
+2. Reduce the dimensionality of the data,
+3. Decrease redundancy in the data,
+4. Filter out of the noise from the data,
+5. Compress the data,
+6. Prepare the data for further analysis using other techniques.
+
+Use Kaggle Data:
+
+https://www.kaggle.com/datasets/jillanisofttech/diabetes-disease-updated-dataset
+
+- This dataset is originally from the National Institute of Diabetes and Digestive and Kidney Diseases. 
+
+- The objective is to predict based on diagnostic measurements whether a patient has gestational diabetes.
+
+
+### Load diabetes dataset
+```{r}
+library(readr)
+diabetes <- read_csv("diabetes.csv",
+                     col_types = cols(Outcome = col_factor(levels = c("0","1"))))
+
+#View(diabetes)
+#str(diabetes)
+```
+
+
+### Six number summary of `diabetes.csv`
+
+```{r}
+summary(diabetes)
+```
+
+### Partition Data
+
+- Divide dataset into training dataset and test datasets.
+
+```{r}
+set.seed(2022)
+
+#remove rows with NA value in any column
+diabetes <- na.omit(diabetes)
+
+ind <- sample(2, nrow(diabetes), replace = TRUE, prob = c(0.8, 0.2))
+
+training <- diabetes[ind==1,]
+testing  <- diabetes[ind==2,]
+```
+
+### Correlation Matrix
+
+- Check the correlation between independent variables. 
+
+- Remove the factor variable from the dataset for correlation data analysis.
+
+```{r message=FALSE}
+library(corrplot)
+
+diabetes_no_outcome <- subset(training, select = -9)
+
+# computing correlation matrix
+cor_data = cor(diabetes_no_outcome)
+
+corrplot(cor_data)
+```
+
+#### See: [Correlation Plots](https://r-charts.com/correlation/corplot/)
+
+```{r}
+library(psych)
+
+corPlot(cor_data, cex = 1.1, upper = FALSE)
+```
+
+## Principal Component Analysis
+
+- Principal Component Analysis is based on only independent variables.
+
+- We'll use: `prcomp`, [rdocumentation.org](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/prcomp)
+
+
+| Scaling Method | Form                                              |
+| :------------- | :------------------------------------------------ |
+| Center         | $f(x) = x_i - mean(x)$                            |
+| Normalization  | $\large f(x) = \frac{x_i - mean(x)}{std~ dev(x)}$ |
+
+```{r}
+pc <- prcomp(training[,-9], center = TRUE, scale. = TRUE)
+
+attributes(pc)
+```
+
+#### Print the results stored in variable `pc`, **BUT SO, WHAT?**
+
+```{r}
+print(pc)
+```
+
+
+## Bi-Plot
+
+- A *better* method for viewing principal component analysis !?!
+
+```{r message=FALSE}
+#library(devtools)
+#install_github("vqv/ggbiplot")
+library(ggbiplot)
+
+g <- ggbiplot(pc,
+              obs.scale = 1,
+              var.scale = 1,
+              groups = training$Outcome,
+              ellipse = TRUE,
+              circle = TRUE,
+              ellipse.prob = 0.68)
+
+g <- g + scale_color_discrete(name = '')
+g <- g + theme(legend.direction = 'horizontal',
+               legend.position = 'top')
+print(g)
+```
+
+## Conclusions:
+
+#### PC1 explains about 26.7% and PC2 explained about 21.7% of variability.
+
+#### Arrows close to each other indicates the high correlation.
+
+1. Age correlates to Num. Pregnancies
+2. Glucose & Blood Pressure
+3. BMI, Insulin, Skin Thickness correlates with Diabetes
+
+---
+
+#### The Good, The Bad & The Ugly
+
+The Good  
+1. PCA preserves the global structure among the data points,  
+2. It is efficiently applied to large data sets,  
+3. PCA may provide information on important features found in your data.
+
+The Bad  
+1. PCA can easily suffer from scale complications,  
+2. PCA is susceptible to outliers,   
+    - For example: If the sample size is small this can influence scaling and relative point placement,  
+
+The Ugly  
+1. Intuitive understanding can be tricky.  
